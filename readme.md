@@ -1,37 +1,31 @@
-# 🚗 스마트 차량 대시보드 모니터링 시스템 
+# BMS Smart Factory — 품질 검사 대시보드
 
-## 📌 프로젝트 소개
-이 프로젝트는 차량에서 발생하는 다양한 데이터를 수집하여  
-운전자 및 관리자가 차량 상태를 한눈에 확인할 수 있도록 하는  
-**웹 기반 차량 모니터링 시스템**입니다. 
+에버넥스 스마트 팩토리 BMS(Battery Management System) 품질 검사용 로컬 프로토타입입니다.
 
-차량 배터리의 세부 상태 들을 실시간으로 확인하고  
-이상 상황 발생 시 알림을 제공하는 것을 목표로 합니다.
+- **Frontend**: Vue 3 + Vite + Pinia + Vue Router + Tailwind CSS
+- **Backend**: Node.js + Express + better-sqlite3 (zero-config 로컬 SQLite)
+- **LLM**: LM Studio 로컬 서버 프록시 (OpenAI 호환)
 
----
+## 빠른 시작
 
-## 🎯 프로젝트 목표
-- 차량 상태 데이터를 시각적으로 모니터링
-- 차량 정보 등록 및 관리 기능 제공
-- 이상 상태 발생 시 알림 시스템 구현
-- 직관적인 대시보드 UI 제공
+```bash
+# 1) 백엔드
+cd backend && cp .env.example .env && npm install && npm run dev
+# 2) 프론트엔드 (새 터미널)
+cd frontend && cp .env.example .env && npm install && npm run dev
+# 3) 접속
+open http://localhost:5173
+```
 
----
+자세한 내용은 `docs/RUN_GUIDE.md`, 테스트 계정은 `docs/ACCOUNTS.md` 참고.
 
-## 🛠 기술 스택
+## 구조
 
-### Backend
-- Java 17
-- Spring Boot 3.x
-- MyBatis
-- Spring Security (JWT 인증)
-
-### Database
-- MySQL
-
-### Tool
-- IntelliJ IDEA
-- MySQL Workbench
-- Git / GitHub
-
-
+```
+04_BMS_SF/
+├── backend/    Express API + 시뮬레이션 엔진 + LLM 프록시
+├── frontend/   Vue 3 SPA
+├── sql/        MySQL DDL / Seed (프로덕션 이관용)
+├── docs/       ACCOUNTS, RUN_GUIDE
+└── image/      챗봇 캐릭터 아이콘
+```
