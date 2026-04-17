@@ -80,17 +80,7 @@ async function createReport() {
   try {
     const messages = history.value
       .filter(m => (m.role === 'user' || m.role === 'assistant') && !m.error && m.content?.trim())
-      .map(m => {
-        const item = { role: m.role, content: m.content };
-        // Text-to-SQL 모드 assistant 응답에는 실행된 SQL/근거를 함께 리포트에 보존
-        if (m.role === 'assistant' && m.context?.mode === 'text_to_sql' && m.context?.sql) {
-          item.sql = m.context.sql;
-          if (m.context.reasoning) item.reasoning = m.context.reasoning;
-          if (typeof m.context.rows_count === 'number') item.rows_count = m.context.rows_count;
-          if (Array.isArray(m.context.rows) && m.context.rows.length) item.rows = m.context.rows;
-        }
-        return item;
-      });
+      .map(m => ({ role: m.role, content: m.content }));
     const r = await api.post('/chat/report', {
       messages,
       session_id: sessionId,
