@@ -52,6 +52,17 @@ const llmMaxTokensSetting = computed(() => settings.value.find(s => s.setting_ke
 const llmContextAlertsSetting = computed(() => settings.value.find(s => s.setting_key === 'llm_context_alerts'));
 const llmContextCarsSetting = computed(() => settings.value.find(s => s.setting_key === 'llm_context_cars'));
 const llmAlertMsgMaxSetting = computed(() => settings.value.find(s => s.setting_key === 'llm_alert_msg_max'));
+const llmProviderSetting = computed(() => settings.value.find(s => s.setting_key === 'llm_provider'));
+const llmBaseUrlSetting = computed(() => settings.value.find(s => s.setting_key === 'llm_base_url'));
+const llmOpenAiKeySetting = computed(() => settings.value.find(s => s.setting_key === 'llm_openai_api_key'));
+const llmGeminiKeySetting = computed(() => settings.value.find(s => s.setting_key === 'llm_gemini_api_key'));
+const currentProvider = computed(() => llmProviderSetting.value?.setting_value || 'lm_studio');
+
+function maskedKey(v) {
+  if (!v) return '';
+  if (v.length <= 8) return '••••';
+  return v.slice(0, 4) + '••••' + v.slice(-4);
+}
 const shiftSetting = computed(() => settings.value.find(s => s.setting_key === 'shift_duration_min'));
 const repairMultSetting = computed(() => settings.value.find(s => s.setting_key === 'repair_duration_multiplier'));
 const SHIFT_OPTIONS = [5, 10, 15, 20, 30];
@@ -165,7 +176,47 @@ function secToMs(sec) { return Math.round(parseFloat(sec) * 1000); }
 
     <section class="card p-5 mb-5">
       <h2 class="font-semibold mb-3">{{ t('settings.section6') }}</h2>
-      <div v-if="llmError" class="text-sm text-red-600 mb-2">{{ llmError }}</div>
+
+      <div v-if="llmProviderSetting" class="flex items-center gap-3 mb-4">
+        <label class="text-sm w-48">{{ t('settings.llmProvider') }}</label>
+        <select class="input max-w-md" :value="currentProvider"
+                @change="e => save('llm_provider', e.target.value)">
+          <option value="lm_studio">{{ t('settings.providerLmStudio') }}</option>
+          <option value="openai">{{ t('settings.providerOpenAi') }}</option>
+          <option value="gemini">{{ t('settings.providerGemini') }}</option>
+        </select>
+        <span class="text-xs text-slate-500">{{ t('settings.llmProviderHint') }}</span>
+      </div>
+
+      <div v-if="currentProvider === 'lm_studio' && llmBaseUrlSetting" class="flex items-center gap-3 mb-4">
+        <label class="text-sm w-48">{{ t('settings.llmBaseUrl') }}</label>
+        <input class="input max-w-md flex-1" type="text"
+               :value="llmBaseUrlSetting.setting_value"
+               :placeholder="'http://127.0.0.1:1234'"
+               @change="e => save('llm_base_url', e.target.value)" />
+        <span class="text-xs text-slate-500">{{ t('settings.llmBaseUrlHint') }}</span>
+      </div>
+
+      <div v-if="currentProvider === 'openai' && llmOpenAiKeySetting" class="flex items-center gap-3 mb-4">
+        <label class="text-sm w-48">{{ t('settings.llmOpenAiKey') }}</label>
+        <input class="input max-w-md flex-1 font-mono" type="password"
+               :value="llmOpenAiKeySetting.setting_value"
+               placeholder="sk-..."
+               @change="e => save('llm_openai_api_key', e.target.value)" />
+        <span v-if="llmOpenAiKeySetting.setting_value" class="text-xs text-slate-400 font-mono">{{ maskedKey(llmOpenAiKeySetting.setting_value) }}</span>
+      </div>
+
+      <div v-if="currentProvider === 'gemini' && llmGeminiKeySetting" class="flex items-center gap-3 mb-4">
+        <label class="text-sm w-48">{{ t('settings.llmGeminiKey') }}</label>
+        <input class="input max-w-md flex-1 font-mono" type="password"
+               :value="llmGeminiKeySetting.setting_value"
+               placeholder="AIza..."
+               @change="e => save('llm_gemini_api_key', e.target.value)" />
+        <span v-if="llmGeminiKeySetting.setting_value" class="text-xs text-slate-400 font-mono">{{ maskedKey(llmGeminiKeySetting.setting_value) }}</span>
+      </div>
+
+      <div v-if="llmError && currentProvider === 'lm_studio'" class="text-sm text-red-600 mb-2">{{ llmError }}</div>
+
       <div v-if="llmSetting" class="flex items-center gap-3 mb-4">
         <label class="text-sm w-48">{{ t('settings.currentModel') }}</label>
         <select class="input max-w-md" :value="llmSetting.setting_value"
