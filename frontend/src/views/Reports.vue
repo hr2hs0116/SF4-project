@@ -48,6 +48,35 @@ function modeLabel(m) {
 
 const sortedItems = computed(() => [...items.value].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')));
 
+// Text-to-SQL 모드 대화에서 실행된 SQL 목록 (assistant 메시지에 sql 필드가 있는 것만)
+const sqlQueries = computed(() => {
+  const msgs = selected.value?.content?.messages || [];
+  const out = [];
+  msgs.forEach((m, idx) => {
+    if (m.role === 'assistant' && m.sql) {
+      out.push({ idx, sql: m.sql, reasoning: m.reasoning, rows_count: m.rows_count, rows: m.rows, chart: chartFromRows(m.rows) });
+    }
+  });
+  return out;
+});
+
+// 집계형 결과(라벨 + 숫자 2컬럼)를 막대 차트 데이터로 변환
+function chartFromRows(rows) {
+  if (!Array.isArray(rows) || rows.length < 2 || rows.length > 30) return null;
+  const keys = Object.keys(rows[0] || {});
+  if (keys.length < 2) return null;
+  // 첫 숫자 컬럼을 값으로, 나머지 중 문자/다른 걸 라벨로
+  let valueKey = keys.find(k => rows.every(r => typeof r[k] === 'number'));
+  if (!valueKey) return null;
+  const labelKey = keys.find(k => k !== valueKey) || keys[0];
+  const points = rows.map(r => ({ label: String(r[labelKey] ?? ''), value: Number(r[valueKey]) }))
+    .filter(p => Number.isFinite(p.value));
+  if (points.length < 2) return null;
+  const max = Math.max(...points.map(p => p.value));
+  if (max <= 0) return null;
+  return { labelKey, valueKey, points, max };
+}
+
 onMounted(load);
 
 function downloadMd() {
@@ -78,10 +107,25 @@ function downloadMd() {
   if (r.car_ids?.length) {
     md += `## ${t('reports.sectionCars')}\n\n${r.car_ids.join(', ')}\n\n`;
   }
+  // Text-to-SQL 모드에서 실행된 SQL 쿼리 섹션
+  const sqls = (c.messages || []).filter(m => m.role === 'assistant' && m.sql);
+  if (sqls.length) {
+    md += `## ${t('reports.sectionSql')}\n\n`;
+    sqls.forEach((m, i) => {
+      md += `**[${i + 1}]`;
+      if (typeof m.rows_count === 'number') md += ` (${m.rows_count} rows)`;
+      md += `**\n\n`;
+      if (m.reasoning) md += `> ${m.reasoning}\n\n`;
+      md += '```sql\n' + m.sql + '\n```\n\n';
+    });
+  }
   if (c.messages?.length) {
     md += `## ${t('reports.sectionConversation')}\n\n`;
     c.messages.forEach((m, i) => {
       md += `**[${i + 1}] ${m.role === 'user' ? 'Q' : 'A'}:**\n${m.content}\n\n`;
+      if (m.role === 'assistant' && m.sql) {
+        md += '```sql\n' + m.sql + '\n```\n\n';
+      }
     });
   }
   const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
@@ -244,6 +288,42 @@ function downloadMd() {
             </div>
           </section>
 
+          <!-- 실행된 SQL (Text-to-SQL 모드일 때만) -->
+          <section v-if="sqlQueries.length" class="mb-4">
+            <h3 class="text-sm font-bold mb-2 text-hyundai-600 dark:text-hyundai-300">
+              🗄️ {{ t('reports.sectionSql') }} ({{ sqlQueries.length }})
+            </h3>
+            <div class="space-y-2">
+              <div v-for="(q, i) in sqlQueries" :key="i"
+                   class="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div class="flex items-center justify-between px-2 py-1 bg-slate-100 dark:bg-slate-800 text-[11px] text-slate-600 dark:text-slate-400">
+                  <span class="font-semibold">Q{{ i + 1 }}</span>
+                  <span v-if="typeof q.rows_count === 'number'">{{ q.rows_count }} rows</span>
+                </div>
+                <div v-if="q.reasoning"
+                     class="px-2 py-1 text-[11px] text-slate-500 dark:text-slate-400 italic border-b border-slate-200 dark:border-slate-700">
+                  {{ q.reasoning }}
+                </div>
+                <div v-if="q.chart" class="p-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                  <div class="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
+                    📊 {{ q.chart.labelKey }} × {{ q.chart.valueKey }}
+                  </div>
+                  <div class="space-y-1">
+                    <div v-for="(p, j) in q.chart.points" :key="j" class="flex items-center gap-2 text-xs">
+                      <div class="w-24 truncate text-right text-slate-600 dark:text-slate-300 shrink-0">{{ p.label }}</div>
+                      <div class="flex-1 h-5 bg-slate-100 dark:bg-slate-800 rounded overflow-hidden relative">
+                        <div class="h-full bg-hyundai-500 dark:bg-hyundai-400 rounded transition-all"
+                             :style="{ width: ((p.value / q.chart.max) * 100) + '%' }"></div>
+                      </div>
+                      <div class="w-12 text-right font-mono text-slate-700 dark:text-slate-200 shrink-0">{{ p.value }}</div>
+                    </div>
+                  </div>
+                </div>
+                <pre class="p-2 text-xs font-mono whitespace-pre-wrap break-all bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200">{{ q.sql }}</pre>
+              </div>
+            </div>
+          </section>
+
           <!-- 원본 대화 (접을 수 있게) -->
           <section v-if="selected.content?.messages?.length">
             <details class="text-sm">
@@ -260,6 +340,8 @@ function downloadMd() {
                     {{ m.role === 'user' ? t('reports.you') : t('reports.assistant') }} #{{ i + 1 }}
                   </div>
                   {{ m.content }}
+                  <pre v-if="m.role === 'assistant' && m.sql"
+                       class="mt-2 p-2 text-xs font-mono whitespace-pre-wrap break-all rounded bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">{{ m.sql }}</pre>
                 </div>
               </div>
             </details>
