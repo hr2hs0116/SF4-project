@@ -131,7 +131,7 @@ function fmtValue(m, value) {
       </div>
       <div class="text-right shrink-0">
         <div v-if="stats" class="text-sm font-medium text-hyundai-600 dark:text-hyundai-300">
-          {{ t('dashboard.shift') }} {{ shiftTimeRange }}
+          🏭 {{ t('dashboard.shift') }} {{ shiftTimeRange }}
         </div>
         <div class="text-xs text-slate-400 mt-0.5">{{ t('dashboard.lastUpdated') }}: {{ new Date().toLocaleTimeString() }}</div>
       </div>
